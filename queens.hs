@@ -1,6 +1,7 @@
 
 import Control.Monad
 import Data.List
+import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -38,8 +39,7 @@ instance Show Board where
         showCell True = "X"
         showCell False = "-"
         showRow tiles = join (showCell <$> tiles)
-    in
-    intercalate "\r\n" (showRow <$> boardInfo)
+    in unlines (showRow <$> boardInfo)
 
 -- | List of all possible positions on a board
 allPositions :: [Position]
@@ -57,14 +57,12 @@ isSolved (Board positions _) = length positions == boardEdge
 {- | Gets the coverage a position has.  Used to determine what row,col,asc,dsc will be occupied
      if a queen is placed in the given position. -}
 coveredBy :: Position -> Set Covered
-coveredBy (Position i) =
-  let (row, col) = i `divMod` boardEdge
-      asc = row - col
-      dsc = row + col
-  in Set.fromList [ Covered DRow row
-                  , Covered DCol col
-                  , Covered DAsc asc
-                  , Covered DDsc dsc ]
+coveredBy (Position tileIndex) =
+  Set.fromList $ map ($ rowcol) [ Covered DDsc . uncurry (+)
+                                , Covered DAsc . uncurry (-)
+                                , Covered DRow . fst
+                                , Covered DCol . snd ]
+  where rowcol = tileIndex `divMod` boardEdge
 
 {- | Attempt to take the given position.  Fails (Nothing) if any Queen on the board already covers
      the position.  Returns the new Board (if possible) with new coverage state. -}
@@ -77,11 +75,7 @@ takePosition (Board positions covered) position
         combinedCovered = Set.union covered positionCovers
 
 pick :: (a -> Maybe b) -> [a] -> Maybe b
-pick _ [] = Nothing
-pick f (head : tail) =
-  case f head of
-  Nothing -> pick f tail
-  justx -> justx
+pick f l = join $ find isJust $ map f l
 
 -- | Solve the given board, placing queens as needed.
 solve :: Board -> Maybe Board
