@@ -93,7 +93,16 @@ unique = unique' Set.empty where
     | otherwise = currentItem : unique' previouslyAndCurrentSeen xs
     where previouslyAndCurrentSeen = Set.insert currentItem previouslySeen
 
+-- | Perform IO while iterating through a sequence
+countIO :: (Monad m, Foldable t) => (Integer -> a -> m ()) -> t a -> m Integer
+countIO f = foldr (\ value count -> do c <- count
+                                       f c value
+                                       return (c + 1)) (pure 0)
+
+main :: IO ()
 main =
-  foldr (\ board -> (>>) (print board >> putStrLn ""))
-        (putStrLn "")
-        (unique $ solve emptyBoard)
+  countIO (\ count board -> do putStr "Solution "
+                               print (count + 1)
+                               print board
+                               putStrLn "") (unique $ solve emptyBoard)
+  >> pure ()

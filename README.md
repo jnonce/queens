@@ -4,14 +4,28 @@ This is a basic solution for 8 Queens written in Haskell written while learning 
 
 ## Sample Output:
 
-    X-------
-    ----X---
+    Solution 1
     -------X
-    -----X--
-    --X-----
-    ------X-
-    -X------
     ---X----
+    X-------
+    --X-----
+    -----X--
+    -X------
+    ------X-
+    ----X---
+
+
+    Solution 2
+    -------X
+    --X-----
+    X-------
+    -----X--
+    -X------
+    ----X---
+    ------X-
+    ---X----
+
+_and so forth_
 
 ## To Develop
 
