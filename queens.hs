@@ -1,6 +1,5 @@
 
 import Control.Monad
-import Data.List
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -25,7 +24,7 @@ newtype Position = Position Int deriving (Eq, Ord)
 
 {-| A game board containing a set of placed queens and tracked data indicating what areas are covered.
  -}
-data Board = Board (Set Position) (Set Covered) deriving (Eq)
+data Board = Board (Set Position) (Set Covered) deriving (Eq, Ord)
 
 -- | Gives the width and height of a game board.
 boardEdge :: Int
@@ -65,25 +64,36 @@ coveredBy (Position tileIndex) =
   where rowcol = tileIndex `divMod` boardEdge
 
 {- | Attempt to take the given position.  Fails (Nothing) if any Queen on the board already covers
-     the position.  Returns the new Board (if possible) with new coverage state. -}
+     the position.  Returns the new Board (if possible) with new coverage state.
+     For performance reasons positions must be taken in increasing order. -}
 takePosition :: Board -> Position -> Maybe Board
 takePosition (Board positions covered) position
+  | betterPositionAlreadyHeld = Nothing
   | any (`Set.member` covered) positionCovers = Nothing
   | otherwise = Just $ Board combinedPositions combinedCovered
   where positionCovers = coveredBy position
         combinedPositions = Set.insert position positions
         combinedCovered = Set.union covered positionCovers
-
-pick :: (a -> Maybe b) -> [a] -> Maybe b
-pick f l = join $ find isJust $ map f l
+        betterPositionAlreadyHeld = isJust $ Set.lookupGE position positions
 
 -- | Solve the given board, placing queens as needed.
-solve :: Board -> Maybe Board
+solve :: Board -> [Board]
 solve board
-  | isSolved board = Just board
-  | otherwise = pick (takePosition board >=> solve) allPositions
+  | isSolved board = [board]
+  | otherwise = boardsWithAdditionalQueen >>= solve
+  where boardsWithAdditionalQueen = mapMaybe (takePosition board) allPositions
+
+-- | Find unique items from a (possilby large) list
+unique :: (Ord a) => [a] -> [a]
+unique = unique' Set.empty where
+  unique' :: (Ord a) => Set a -> [a] -> [a]
+  unique' _ [] = []
+  unique' previouslySeen (currentItem : xs)
+    | Set.member currentItem previouslySeen = unique' previouslySeen xs
+    | otherwise = currentItem : unique' previouslyAndCurrentSeen xs
+    where previouslyAndCurrentSeen = Set.insert currentItem previouslySeen
 
 main =
-  case solve emptyBoard of
-    Nothing -> putStrLn "No solution"
-    Just board -> print board
+  foldr (\ board -> (>>) (print board >> putStrLn ""))
+        (putStrLn "")
+        (unique $ solve emptyBoard)
