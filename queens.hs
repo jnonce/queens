@@ -1,8 +1,10 @@
 
 import Control.Monad
+import Control.Arrow
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.List as List
 
 {-| One dimension by which the board can be covered -}
 data Dimension = DRow -- horizontal row
@@ -55,12 +57,12 @@ isSolved (Board positions _) = length positions == boardEdge
 
 {- | Gets the coverage a position has.  Used to determine what row,col,asc,dsc will be occupied
      if a queen is placed in the given position. -}
-coveredBy :: Position -> Set Covered
+coveredBy :: Position -> [Covered]
 coveredBy (Position tileIndex) =
-  Set.fromList $ map ($ rowcol) [ Covered DDsc . uncurry (+)
-                                , Covered DAsc . uncurry (-)
-                                , Covered DRow . fst
-                                , Covered DCol . snd ]
+  [ Covered DDsc . uncurry (+)
+  , Covered DAsc . uncurry (-)
+  , Covered DRow . fst
+  , Covered DCol . snd ] <*> [rowcol]
   where rowcol = tileIndex `divMod` boardEdge
 
 {- | Attempt to take the given position.  Fails (Nothing) if any Queen on the board already covers
@@ -68,20 +70,21 @@ coveredBy (Position tileIndex) =
      For performance reasons positions must be taken in increasing order. -}
 takePosition :: Board -> Position -> Maybe Board
 takePosition (Board positions covered) position
-  | betterPositionAlreadyHeld = Nothing
   | any (`Set.member` covered) positionCovers = Nothing
   | otherwise = Just $ Board combinedPositions combinedCovered
   where positionCovers = coveredBy position
         combinedPositions = Set.insert position positions
-        combinedCovered = Set.union covered positionCovers
-        betterPositionAlreadyHeld = isJust $ Set.lookupGE position positions
+        combinedCovered = foldr Set.insert covered positionCovers
 
--- | Solve the given board, placing queens as needed.
-solve :: Board -> [Board]
-solve board
+-- | Solve the board by trying to take all given positions
+solve :: [Position] -> Board -> [Board]
+solve positionsToTry board
   | isSolved board = [board]
-  | otherwise = boardsWithAdditionalQueen >>= solve
-  where boardsWithAdditionalQueen = mapMaybe (takePosition board) allPositions
+  | otherwise = solveAtPosition positionsToTry
+  where solveAtPosition [] = []
+        solveAtPosition (position : remaining) =
+          let boardWithPos = maybeToList $ takePosition board position
+          in (board : boardWithPos) >>= solve remaining
 
 -- | Find unique items from a (possilby large) list
 unique :: (Ord a) => [a] -> [a]
@@ -104,5 +107,5 @@ main =
   countIO (\ count board -> do putStr "Solution "
                                print (count + 1)
                                print board
-                               putStrLn "") (unique $ solve emptyBoard)
+                               putStrLn "") (unique $ solve allPositions emptyBoard)
   >> pure ()
