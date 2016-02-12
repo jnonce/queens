@@ -1,10 +1,11 @@
 
-import Control.Monad
-import Control.Arrow
-import Data.Maybe
-import Data.Set (Set)
-import qualified Data.Set as Set
-import qualified Data.List as List
+import           Control.Applicative
+import           Control.Arrow
+import           Control.Monad
+import qualified Data.List           as List
+import           Data.Maybe
+import           Data.Set            (Set)
+import qualified Data.Set            as Set
 
 {-| One dimension by which the board can be covered -}
 data Dimension = DRow -- horizontal row
@@ -80,11 +81,10 @@ takePosition (Board positions covered) position
 solve :: [Position] -> Board -> [Board]
 solve positionsToTry board
   | isSolved board = [board]
-  | otherwise = solveAtPosition positionsToTry
-  where solveAtPosition [] = []
-        solveAtPosition (position : remaining) =
-          let boardWithPos = maybeToList $ takePosition board position
-          in (board : boardWithPos) >>= solve remaining
+  | (position : remaining) <- positionsToTry
+  = let boardWithPos = maybeToList $ takePosition board position
+    in (board : boardWithPos) >>= solve remaining
+  | otherwise = []
 
 -- | Find unique items from a (possilby large) list
 unique :: (Ord a) => [a] -> [a]
